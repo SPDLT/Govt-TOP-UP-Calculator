@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DLT EV Subsidy Calculator</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
   --bg:#080d1a;--surf:#0f1629;--card:#121b30;--card2:#162038;
@@ -18,7 +17,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--txt);font-size:14px;line-height:1.5;height:100vh;overflow:hidden}
-.app{display:grid;grid-template-rows:56px 1fr;grid-template-columns:284px 1fr 296px;height:100vh}
+.app{display:grid;grid-template-rows:56px 1fr;grid-template-columns:284px 1fr;height:100vh;transition:grid-template-columns .25s ease}
+.app.sb-collapsed{grid-template-columns:0px 1fr}
 
 /* HEADER */
 .hdr{grid-column:1/-1;background:linear-gradient(90deg,#090e1c,#0d1528 60%,#090e1c);border-bottom:1px solid var(--bdr);display:flex;align-items:center;padding:0 18px;gap:12px;overflow:hidden;position:relative}
@@ -34,8 +34,13 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--txt);font
 .L,.R,.M{overflow-y:auto}
 .L::-webkit-scrollbar,.R::-webkit-scrollbar,.M::-webkit-scrollbar{width:3px}
 .L::-webkit-scrollbar-thumb,.R::-webkit-scrollbar-thumb,.M::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
-.L{background:var(--surf);border-right:1px solid var(--bdr);padding:13px;display:flex;flex-direction:column;gap:13px}
-.R{background:var(--surf);border-left:1px solid var(--bdr);padding:13px;display:flex;flex-direction:column;gap:11px}
+.L{background:var(--surf);border-right:1px solid var(--bdr);padding:13px;display:flex;flex-direction:column;gap:13px;overflow:hidden;transition:padding .25s ease}
+.app.sb-collapsed .L{padding:0;border-right:none}
+/* Sidebar toggle button */
+.sb-toggle{position:fixed;left:284px;top:50%;transform:translateY(-50%);z-index:100;width:18px;height:48px;background:var(--card);border:1px solid var(--bdr2);border-left:none;border-radius:0 8px 8px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px;transition:left .25s ease,background .15s,color .15s;user-select:none}
+.sb-toggle:hover{background:var(--card2);color:var(--gold)}
+.app.sb-collapsed .sb-toggle{left:0px}
+
 .M{padding:13px;display:flex;flex-direction:column;gap:9px}
 
 /* TYPOGRAPHY */
@@ -166,20 +171,9 @@ input[type=range].evsl::-webkit-slider-thumb{background:var(--ev);box-shadow:0 0
 /* GROUP aggregate mini-kpis */
 .gc-mkpis{display:flex;gap:6px;margin-top:9px}
 
-/* CHART CARDS */
-.cc{background:var(--card);border:1px solid var(--bdr);border-radius:9px;padding:10px}
-.cct{font-size:10px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px}
 
-/* TOTAL HERO */
-.hero{background:linear-gradient(135deg,#0d1528,#162038);border:1px solid rgba(240,180,41,.28);border-radius:11px;padding:13px;text-align:center;position:relative;overflow:hidden;box-shadow:0 0 25px rgba(240,180,41,.06)}
-.hero::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at center,rgba(240,180,41,.04) 0%,transparent 60%);pointer-events:none}
-.h-lbl{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
-.h-val{font-family:'Rajdhani',sans-serif;font-size:32px;font-weight:700;color:var(--gold);line-height:1;text-shadow:0 0 16px rgba(240,180,41,.3)}
-.h-u{font-size:10px;color:var(--muted);margin-top:1px}
-.h-sp{display:flex;justify-content:center;gap:13px;margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)}
-.h-s{text-align:center}
-.h-sl{font-size:9px;color:var(--muted)}
-.h-sv{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700}
+
+
 
 /* COMPARE TABLE */
 .ctbl{width:100%;border-collapse:collapse;font-size:11px}
@@ -243,6 +237,9 @@ input[type=range]:disabled{opacity:.3;cursor:not-allowed}
   <div style="font-size:10px;color:var(--muted)"><span class="dot"></span>LIVE CALCULATION</div>
   <div class="badge">กรมการขนส่งทางบก</div>
 </header>
+
+<!-- SIDEBAR TOGGLE -->
+<div class="sb-toggle" id="sb-toggle" onclick="toggleSidebar()" title="ซ่อน/แสดง Sidebar">◀</div>
 
 <!-- LEFT SIDEBAR -->
 <aside class="L">
@@ -338,39 +335,6 @@ input[type=range]:disabled{opacity:.3;cursor:not-allowed}
   </div>
 </main>
 
-<!-- RIGHT PANEL -->
-<aside class="R">
-  <div class="sec">วิเคราะห์งบประมาณ</div>
-  <div class="hero">
-    <div class="h-lbl">งบประมาณรวมทั้งสิ้น (กลุ่มที่เลือก)</div>
-    <div class="h-val" id="h-tot">-</div>
-    <div class="h-u">ล้านบาท</div>
-    <div class="h-sp">
-      <div class="h-s"><div class="h-sl">กค. ฐาน</div><div class="h-sv" id="h-kk" style="color:var(--blue)">-</div></div>
-      <div class="h-s"><div class="h-sl">คค. Top-up</div><div class="h-sv" id="h-tt" style="color:var(--gold)">-</div></div>
-      <div class="h-s"><div class="h-sl">คค./รวม</div><div class="h-sv" id="h-rt" style="color:var(--purple)">-</div></div>
-    </div>
-  </div>
-  <div class="cc">
-    <div class="cct">งบประมาณแยกกลุ่ม (ล้านบาท)</div>
-    <div style="position:relative;height:190px"><canvas id="ch-g"></canvas></div>
-  </div>
-  <div class="cc">
-    <div class="cct">สัดส่วน กค. vs คค. Top-up</div>
-    <div style="position:relative;height:150px"><canvas id="ch-d"></canvas></div>
-  </div>
-  <div class="cc">
-    <div class="cct">รถ EV vs B20/Other (คัน)</div>
-    <div style="position:relative;height:150px"><canvas id="ch-e"></canvas></div>
-  </div>
-  <div class="cc" style="background:var(--card2)">
-    <div class="cct">ต้นทุนเฉลี่ยต่อคัน</div>
-    <div style="display:flex;justify-content:space-between">
-      <div><div style="font-size:10px;color:var(--muted)">คค. / คัน EV</div><div id="c-ev" style="font-family:'Rajdhani',sans-serif;font-size:19px;font-weight:700;color:var(--ev)">-</div><div style="font-size:9px;color:var(--muted)">บาท</div></div>
-      <div style="text-align:right"><div style="font-size:10px;color:var(--muted)">รวม / คัน</div><div id="c-all" style="font-family:'Rajdhani',sans-serif;font-size:19px;font-weight:700;color:var(--gold)">-</div><div style="font-size:9px;color:var(--muted)">บาท</div></div>
-    </div>
-  </div>
-</aside>
 </div>
 
 <script>
@@ -384,7 +348,7 @@ const GROUPS = [
   { id:4, icon:'🛺', name:'รถสามล้อรับจ้าง',    desc:'EV เท่านั้น (ไม่มีฐาน กค.)',  color:'#8b5cf6', strat:'quickwin', registeredBase:14716 },
   { id:5, icon:'🏍️', name:'รถจักรยานยนต์สาธารณะ',desc:'รถ 2 ล้อ (ฐาน กค. 10,000 บาท)',color:'#06b6d4', strat:'quickwin', registeredBase:58361 },
   { id:6, icon:'🎒', name:'รถรับจ้างรับ-ส่งนักเรียน',desc:'รถตู้ / มินิบัส EV / น้ำมัน',color:'#f97316', strat:'bigwin', registeredBase:4829 },
-  { id:7, icon:'🚚', name:'รถบรรทุก',           desc:'อายุเกิน 40 ปี · เป้าหมายคงที่รวม 5,000 คัน',color:'#64748b', strat:'bigwin', registeredBase:440195 }
+  { id:7, icon:'🚚', name:'รถบรรทุก',           desc:'อายุเกิน 40 ปี · เป้าหมายคงที่ 5,000 คัน',color:'#64748b', strat:'bigwin', registeredBase:440195 }
 ];
 
 const SUBS = {
@@ -412,8 +376,7 @@ const SUBS = {
     { id:'6b', name:'รถมินิบัส',   icon:'🚌', note:'มินิบัส EV / อื่นๆ', color:'#fb923c', base:2419, dP:.10, dE:.50, kk:50000, evS:100000, iceS:50000, fixed:null }
   ],
   7:[
-    { id:'7a', name:'บรรทุกขนาดกลาง', icon:'🚛', note:'น.น. < 10 ตัน · เป้าคงที่ 2,500 คัน', color:'#64748b', base:220000, dP:.10, dE:.50, kk:50000, evS:150000, iceS:150000, fixed:2500 },
-    { id:'7b', name:'บรรทุกขนาดใหญ่', icon:'🚚', note:'น.น. ≥ 10 ตัน · เป้าคงที่ 2,500 คัน', color:'#94a3b8', base:220195, dP:.10, dE:.50, kk:50000, evS:250000, iceS:250000, fixed:2500 }
+    { id:'7a', name:'รถบรรทุก', icon:'🚚', note:'อายุเกิน 40 ปี · เป้าหมายคงที่ 5,000 คัน', color:'#64748b', base:440195, dP:.10, dE:1.0, kk:50000, evS:200000, iceS:0, fixed:5000 }
   ]
 };
 
@@ -503,30 +466,6 @@ const evGrad = (el,p) => { el.style.background=`linear-gradient(to right,var(--e
 // ════════════════════════════════════════════
 // CHARTS
 // ════════════════════════════════════════════
-let chG, chD, chE;
-
-function initCharts() {
-  Chart.defaults.color='#7b8fb5'; Chart.defaults.font.family="'Rajdhani',sans-serif";
-  chG = new Chart(document.getElementById('ch-g'),{type:'bar',data:{labels:[],datasets:[
-    {label:'กค.ฐาน',data:[],backgroundColor:'#3b82f655',borderColor:'#3b82f6',borderWidth:1,borderRadius:3},
-    {label:'คค.Top-up',data:[],backgroundColor:[],borderColor:[],borderWidth:1,borderRadius:3}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{boxWidth:8,font:{size:9}}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})} ล้าน`}}},scales:{x:{stacked:true,grid:{color:'#1e2d4a'},ticks:{font:{size:9},maxRotation:30}},y:{stacked:true,grid:{color:'#1e2d4a'},ticks:{font:{size:9},callback:v=>v>=1000?Math.round(v/1000)+'K':v}}}}});
-  chD = new Chart(document.getElementById('ch-d'),{type:'doughnut',data:{labels:['กค.ฐาน','คค.Top-up'],datasets:[{data:[0,0],backgroundColor:['#3b82f6bb','#f0b429bb'],borderColor:['#3b82f6','#f0b429'],borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:9}}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})} ล้าน`}}}}});
-  chE = new Chart(document.getElementById('ch-e'),{type:'doughnut',data:{labels:['EV','B20/Other'],datasets:[{data:[0,0],backgroundColor:['#10b981bb','#6b7280bb'],borderColor:['#10b981','#6b7280'],borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:9}}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed.toLocaleString('th-TH')} คัน`}}}}});
-}
-
-function updCharts(res, tot) {
-  const sel = GROUPS.filter(g => ST.groups[g.id].selected);
-  const lbl = sel.map(g => g.icon+' '+g.name.replace(/^รถ/,'').slice(0,7));
-  const kk  = sel.map(g => res[g.id].bkk/1e6);
-  const tt  = sel.map(g => res[g.id].btt/1e6);
-  const bg  = sel.map(g => g.color+'88');
-  const bd  = sel.map(g => g.color);
-  chG.data.labels=lbl; chG.data.datasets[0].data=kk; chG.data.datasets[1].data=tt; chG.data.datasets[1].backgroundColor=bg; chG.data.datasets[1].borderColor=bd; chG.update('none');
-  chD.data.datasets[0].data=[tot.bkk/1e6,tot.btt/1e6]; chD.update('none');
-  chE.data.datasets[0].data=[tot.ev,tot.ice]; chE.update('none');
-}
-
 // ════════════════════════════════════════════
 // RENDER
 // ════════════════════════════════════════════
@@ -539,11 +478,6 @@ function updAll() {
   S('k-evn',fN(tot.ev)); S('k-evp',(ep*100).toFixed(0)+'%');
   const evb=document.getElementById('gev-bar'); if(evb) evb.style.width=(ep*100)+'%';
   const icb=document.getElementById('gice-bar'); if(icb) icb.style.width=((1-ep)*100)+'%';
-
-  // Hero
-  S('h-tot',fM(tot.tot)); S('h-kk',fM(tot.bkk)); S('h-tt',fM(tot.btt));
-  S('h-rt',tot.tot>0?(tot.btt/tot.tot*100).toFixed(1)+'%':'-');
-  S('c-ev',tot.ev>0?fN(tot.btt/tot.ev):'-'); S('c-all',tot.tgt>0?fN(tot.tot/tot.tgt):'-');
 
   // Group cards
   GROUPS.forEach(g => {
@@ -577,7 +511,6 @@ function updAll() {
     });
   });
 
-  updCharts(res,tot);
   updCmp();
   updStratCompare();
 }
@@ -924,6 +857,13 @@ function setSc(rate, bid) {
   updAll();
 }
 
+function toggleSidebar() {
+  const app = document.querySelector('.app');
+  const btn = document.getElementById('sb-toggle');
+  const collapsed = app.classList.toggle('sb-collapsed');
+  btn.textContent = collapsed ? '▶' : '◀';
+}
+
 function clearSc() { ['sc1','sc2','sc3'].forEach(id=>document.getElementById(id).classList.remove('act')); }
 
 function onGP(v) {
@@ -969,28 +909,3 @@ function onSS(sid, j, gId, type, v) {
 
 function toggleSub(sid) {
   const el=document.getElementById(`sub-${sid}`);
-  if(el) el.classList.toggle('open');
-}
-
-function resetAll() {
-  ST = mkState();
-  initCustomSel();
-  setStratBtns('custom');
-  document.getElementById('sl-gp').value=10; S('lbl-gp','10%');
-  ['sc1','sc2','sc3'].forEach(id=>document.getElementById(id).classList.remove('act'));
-  document.getElementById('sc1').classList.add('act');
-  document.querySelectorAll('.ybtn').forEach((b,i)=>b.classList.toggle('act',i===0));
-  buildAll();
-  updAll();
-}
-
-// ════════════════════════════════════════════
-// INIT
-// ════════════════════════════════════════════
-initCustomSel();
-buildAll();
-initCharts();
-setSc(0.10,'sc1');
-</script>
-</body>
-</html>
